@@ -6,7 +6,6 @@ import pytest
 
 import pyintesishome_local
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
