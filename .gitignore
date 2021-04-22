@@ -1,0 +1,13 @@
+# IDEs and OSs
+.vscode
+!.vscode/extensions.json
+.DS_Store
+
+# Python
+build/
+.coverage
+dist/
+*.egg-info
+*.pyc
+__pycache__/
+coverage.xml
