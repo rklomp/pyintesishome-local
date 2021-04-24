@@ -4,7 +4,7 @@ import asyncio
 
 import aiohttp
 
-import pyintesishome_local
+from pyintesishome_local import IntesisHomeApi, IntesisHomeEntity
 
 
 async def main():
@@ -16,14 +16,18 @@ async def main():
     args = parser.parse_args()
 
     async with aiohttp.ClientSession() as session:
-        intesishome = pyintesishome_local.IntesisHomeApi(session, args.host)
-        print(await intesishome.request("getinfo"))
-        print(await intesishome.request("getavailableservices"))
-        if not await intesishome.authenticate(args.user, args.password):
+        api = IntesisHomeApi(session, args.host)
+        if not await api.authenticate(args.user, args.password):
             print("Authentication Failed!")
             return
-        print(await intesishome.request("getavailableservices"))
-        print(await intesishome.request("getavailabledatapoints"))
+
+        intesishome = IntesisHomeEntity(api)
+        await intesishome.get_datapoints()
+        print(intesishome.get_fan_speed_list(None))
+        print(await intesishome.get_values())
+        await intesishome.set_power_on(None)
+        await asyncio.sleep(10)
+        await intesishome.set_power_off(None)
 
 
 asyncio.run(main())
