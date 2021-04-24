@@ -2,7 +2,8 @@
 
 Source: https://github.com/rklomp/pyintesishome-local
 """
-from typing import Any
+import asyncio
+from typing import Any, Callable
 
 from aiohttp import ClientSession
 
@@ -37,19 +38,19 @@ TEXT_VALUES_MODES = {0: "auto", 1: "heat", 2: "dry", 3: "fan", 4: "cool"}
 TEXT_VALUES_ONOFF = {0: "Off", 1: "On"}
 TEXT_VALUES_REMOTE = {0: "Remote Enabled", 1: "Remote Disabled"}
 TEXT_VALUES_VANES = {
-    0: "Auto",
-    1: "Position 1",
-    2: "Position 2",
-    3: "Position 3",
-    4: "Position 4",
-    5: "Position 5",
-    6: "Position 6",
-    7: "Position 7",
-    8: "Position 8",
-    9: "Position 9",
-    10: "Swing",
-    11: "Swirl",
-    12: "Wide",
+    0: "auto/stop",
+    1: "manual1",
+    2: "manual2",
+    3: "manual3",
+    4: "manual4",
+    5: "manual5",
+    6: "manual6",
+    7: "manual7",
+    8: "manual8",
+    9: "manual9",
+    10: "swing",
+    11: "swirl",
+    12: "wide",
 }
 ID_VALUES_FANSPEED = {v: k for k, v in TEXT_VALUES_FANSPEED.items()}
 ID_VALUES_MODES = {v: k for k, v in TEXT_VALUES_MODES.items()}
@@ -164,11 +165,14 @@ class IntesisHomeEntity:
         self,
         api: IntesisHomeApi,
     ):
-        self.is_connected = True
+        self.is_connected = False
         self._api: IntesisHomeApi = api
         self._info: dict = {}
         self._values: dict = {}
         self._datapoints: dict = {}
+        self._update_callbacks: list = []
+        self._update_task = None
+        self._scan_interval = 5
         self.device_type: str = "IntesisHomeLocal"
 
     async def get_info(self) -> dict:
@@ -339,3 +343,30 @@ class IntesisHomeEntity:
 
     def get_cool_power_consumption(self, device_id):
         """Get the entity cool power consumption."""
+
+    async def add_update_callback(self, method: Callable):
+        """Public method to add a callback subscriber."""
+        self._update_callbacks.append(method)
+
+    async def _send_update_callback(self):
+        """Internal method to notify all update callback subscribers."""
+        if self._update_callbacks:
+            for callback in self._update_callbacks:
+                await callback()
+
+    async def _run_updater(self):
+        while True:
+            await self.get_values()
+            await self._send_update_callback()
+            await asyncio.sleep(self._scan_interval)
+
+    async def connect(self):
+        """Connect to the device and start periodic updater."""
+        self._update_task = asyncio.create_task(self._run_updater())
+        self.is_connected = True
+
+    async def stop(self):
+        """Disconnect and stop periodic updater."""
+        self._update_task.cancel()
+        await self._update_task
+        self.is_connected = False
